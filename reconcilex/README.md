@@ -1,43 +1,41 @@
-# ReconcileX
+# ReconcileX — Application
 
-### AI-assisted payment reconciliation and resolution
+This folder contains the main ReconcileX application.
 
-ReconcileX helps payment operations teams find and resolve payment issues such as duplicate payments and failed-payment retries.
+## What it does
 
-## The problem
+ReconcileX investigates payment incidents and helps decide whether a payment should be refunded, manually reviewed, or left unchanged.
 
-Sometimes a customer can be charged twice for the same order.
+The application checks:
 
-For example:
+- Customer
+- Order
+- Payment amount
+- Payment method
+- Payment status
+- Payment timing
+- Refund history
+- Settlement status
 
-- Customer pays ₹2,500 by Card
-- Payment appears pending
-- Customer pays again using UPI
-- Both payments eventually succeed
+It then creates an evidence-based confidence score and an investigation case.
 
-Now the merchant has collected ₹5,000 for a ₹2,500 order.
-
-The difficult part is deciding whether the second payment is actually a duplicate and what should be done.
-
-## What ReconcileX does
-
-ReconcileX:
-
-1. Detects suspicious payment patterns
-2. Collects evidence from payment and order records
-3. Calculates a confidence score
-4. Uses AI to explain what happened
-5. Recommends an action
-6. Sends uncertain cases for manual review
-7. Records the complete audit trail
-8. Reconciles the ledger after resolution
-
-### Example
+## Main flow
 
 ```text
-Expected     ₹2,500
-Collected    ₹5,000
-Difference   ₹2,500
-
-Confidence   75%
-Decision     Manual Review
+Payment
+   ↓
+Detection
+   ↓
+Evidence
+   ↓
+AI Investigation
+   ↓
+Decision
+   ↓
+Human Approval
+   ↓
+Resolution
+   ↓
+Ledger Reconciliation
+   ↓
+Audit Trail
