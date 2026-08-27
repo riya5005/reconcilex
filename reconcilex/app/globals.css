@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+:root {
+  --ink: #0b1120;
+  --ink-soft: #16203a;
+  --paper: #f6f7f5;
+  --surface: #ffffff;
+  --line: #dfe3e0;
+  --line-soft: #ebede9;
+  --text: #10151f;
+  --text-soft: #5b6472;
+  --text-faint: #8a92a0;
+
+  --ledger-green: #23573f;
+  --ledger-green-soft: #e6efe8;
+  --seal-amber: #a8621a;
+  --seal-amber-soft: #f6ead7;
+  --alert-red: #a6293a;
+  --alert-red-soft: #f7e4e6;
+
+  --font-display: "Space Grotesk", "Segoe UI", sans-serif;
+  --font-body: "Public Sans", "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  background: var(--paper);
+  color: var(--text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--ledger-green);
+  color: white;
+}
+
+.font-display { font-family: var(--font-display); }
+.font-mono { font-family: var(--font-mono); }
+
+.rule { border-top: 1px solid var(--line); }
+.rule-soft { border-top: 1px solid var(--line-soft); }
+
+.stamp {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 128px;
+  height: 128px;
+  border-radius: 999px;
+  border: 3px solid currentColor;
+  transform: rotate(-8deg);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.stamp::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  opacity: 0.5;
+}
+
+.evidence-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  background: var(--ledger-green-soft);
+  color: var(--ledger-green);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+@keyframes stampIn {
+  0% { opacity: 0; transform: rotate(-8deg) scale(1.4); }
+  60% { opacity: 1; }
+  100% { opacity: 1; transform: rotate(-8deg) scale(1); }
+}
+.animate-stamp {
+  animation: stampIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-stamp { animation: none; }
+}
+
+a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--ledger-green);
+  outline-offset: 2px;
+}
+
+input, select {
+  font-family: var(--font-body);
+}
