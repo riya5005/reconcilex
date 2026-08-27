@@ -19,18 +19,16 @@ Collected       ₹5,000
 Expected        ₹2,500
 ```
 ## Our approach
+```text
+
 
 Payment Data
-
      ↓
 Duplicate Detection
-
      ↓
 Evidence & Confidence
-
      ↓
 AI Investigation
-
      ↓
 Decision
      ↓
