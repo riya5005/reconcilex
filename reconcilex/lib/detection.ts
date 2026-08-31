@@ -348,10 +348,68 @@ export function runOrderPaymentMismatchDetection() {
   return created;
 }
 
+
+const STUCK_REFUND_THRESHOLD_MINUTES = Number(process.env.STUCK_REFUND_THRESHOLD_MINUTES) || 2;
+
+interface StuckRefundRow {
+  refund_id: string;
+  case_id: string;
+  payment_id: string;
+  amount: number;
+  status: string;
+  created_at: string;
+}
+
+
+export function runStuckRefundDetection() {
+  const db = getDb();
+  const cutoff = new Date(Date.now() - STUCK_REFUND_THRESHOLD_MINUTES * 60_000).toISOString();
+
+  const stuckRefunds = db
+    .prepare(`SELECT * FROM refunds WHERE status = 'PROCESSING' AND created_at <= ?`)
+    .all(cutoff) as StuckRefundRow[];
+
+  const alreadyFlagged = db
+    .prepare(`SELECT DISTINCT case_id FROM audit_events WHERE event_type = 'REFUND_STUCK_FLAGGED'`)
+    .all() as { case_id: string }[];
+  const flaggedSet = new Set(alreadyFlagged.map((r) => r.case_id));
+
+  const updateCaseType = db.prepare(
+    `UPDATE resolution_cases SET case_type = 'STUCK_REFUND', updated_at = ? WHERE case_id = ?`
+  );
+
+  const flagged: string[] = [];
+
+  for (const refund of stuckRefunds) {
+    if (flaggedSet.has(refund.case_id)) continue;
+
+    const ageMinutes = Math.round((Date.now() - new Date(refund.created_at).getTime()) / 60000);
+    const now = new Date().toISOString();
+
+    updateCaseType.run(now, refund.case_id);
+
+    recordAudit({
+      caseId: refund.case_id,
+      paymentId: refund.payment_id,
+      eventType: "REFUND_STUCK_FLAGGED",
+      actor: "ReconcileX Agent",
+      reason: `Refund ${refund.refund_id} for \u20b9${refund.amount.toLocaleString(
+        "en-IN"
+      )} has been PROCESSING for ${ageMinutes} minutes (threshold: ${STUCK_REFUND_THRESHOLD_MINUTES}m) with no completion webhook received — flagged for operator follow-up`,
+      newState: "REFUND_INITIATED",
+    });
+
+    flagged.push(refund.case_id);
+  }
+
+  return flagged;
+}
+
 export function runFullDetection() {
   const dup = runDuplicateDetection();
   const mismatches = runOrderPaymentMismatchDetection();
-  return { ...dup, mismatchCasesCreated: mismatches };
+  const stuckRefunds = runStuckRefundDetection();
+  return { ...dup, mismatchCasesCreated: mismatches, stuckRefundsFlagged: stuckRefunds };
 }
 
 export { randomUUID };
