@@ -10,6 +10,7 @@ import AuditTimeline from "@/components/AuditTimeline";
 import AgentActivityPanel from "@/components/AgentActivityPanel";
 import RiskBadge from "@/components/RiskBadge";
 import LedgerSummary from "@/components/LedgerSummary";
+import WhyRetriedCard from "@/components/WhyRetriedCard";
 import { formatINR, caseTypeLabel } from "@/lib/format";
 
 interface CaseData {
@@ -84,6 +85,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
     }>;
     investigation: Investigation | null;
     refund: RefundRecord | null;
+    ledger: { expected: number; collected: number; reconciled: boolean } | null;
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -143,6 +145,18 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
     setCheckingRefund(false);
   }
 
+  async function forceCompleteRefund() {
+    setCheckingRefund(true);
+    setError(null);
+    const res = await fetch(`/api/cases/${id}/force-complete-refund`, { method: "POST" });
+    const json = await res.json();
+    if (!res.ok) {
+      setError(json.error ?? "Failed to manually confirm refund");
+    }
+    await load();
+    setCheckingRefund(false);
+  }
+
   async function runInvestigation() {
     setInvestigating(true);
     setError(null);
@@ -185,9 +199,25 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
   const canManualReview = !["REFUND_COMPLETED", "RESOLVED", "REJECTED", "MANUAL_REVIEW"].includes(c.status);
   const inv = data.investigation;
 
-  const collected = data.payments
-    .filter((p) => p.current_status === "SUCCESS")
-    .reduce((sum, p) => sum + p.amount, 0);
+  // Only overrides the generic conclusion when the data actually shows the
+  // pending/retry pattern the deterministic engine already scored under
+  // "First payment was initially pending or failed" + "Both payments
+  // ultimately settled" (lib/detection.ts) — this narrates those same facts,
+  // it does not add or infer anything new.
+  let retryNarrative: string | null = null;
+  if (data.payments.length === 2) {
+    const [first, second] = [...data.payments].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+    const isRetryPattern =
+      (first.initial_status === "PENDING" || first.initial_status === "FAILED") &&
+      first.current_status === "SUCCESS" &&
+      second.current_status === "SUCCESS";
+    if (isRetryPattern) {
+      const firstWord = first.initial_status === "PENDING" ? "remained pending" : "did not go through";
+      retryNarrative = `The customer initiated a ${formatINR(first.amount)} ${first.method} payment. It ${firstWord} from the customer's side, so they retried using ${second.method}. The original ${first.method} payment then also succeeded, resulting in two successful payments against the same order.`;
+    }
+  }
 
   return (
     <main className="p-8 max-w-5xl">
@@ -233,12 +263,18 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
         </section>
       )}
 
+      {/* Why did the customer pay again? — only renders when the data shows the retry pattern */}
+      <WhyRetriedCard payments={data.payments} />
+
       {/* Ledger / Reconciliation view */}
       {data.order && (
         <section className="mb-8">
           <h2 className="font-display text-lg font-semibold mb-3">Ledger — Order {data.order.order_id}</h2>
           <div className="rounded-lg p-5" style={{ background: "var(--surface)", border: "1px solid var(--line)" }}>
-            <LedgerSummary expected={data.order.amount} collected={collected} />
+            <LedgerSummary
+              expected={data.ledger?.expected ?? data.order.amount}
+              collected={data.ledger?.collected ?? 0}
+            />
           </div>
         </section>
       )}
@@ -311,12 +347,13 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
             <div className="rule-soft mt-4 pt-4">
               <p className="text-sm">
                 <span className="font-medium">Conclusion: </span>
-                {c.confidence_band === "HIGH" &&
-                  "The transactions are highly likely to represent the same underlying purchase."}
-                {c.confidence_band === "MEDIUM" &&
-                  "Evidence is suggestive but not conclusive. This requires a human decision before any action is taken."}
-                {c.confidence_band === "LOW" &&
-                  "Evidence does not support treating these as duplicate payments."}
+                {retryNarrative
+                  ? retryNarrative
+                  : c.confidence_band === "HIGH"
+                  ? "The transactions are highly likely to represent the same underlying purchase."
+                  : c.confidence_band === "MEDIUM"
+                  ? "Evidence is suggestive but not conclusive. This requires a human decision before any action is taken."
+                  : "Evidence does not support treating these as duplicate payments."}
               </p>
             </div>
           </div>
@@ -454,6 +491,24 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
                       can&apos;t reach this app — use this button to ask Razorpay directly instead
                       of waiting.
                     </p>
+                    <div className="rule-soft mt-3 pt-3">
+                      <p className="text-[11px] mb-2" style={{ color: "var(--text-faint)" }}>
+                        Razorpay Test Mode has a known sandbox limitation: without a real bank
+                        rail, a refund can stay &quot;pending&quot; indefinitely with nothing left
+                        for Razorpay to ever confirm. If you&apos;ve verified this refund in the{" "}
+                        <strong>Razorpay Dashboard</strong> yourself, you can close the case
+                        manually — this does <strong>not</strong> claim Razorpay confirmed
+                        anything; it&apos;s recorded in the audit trail as an operator override.
+                      </p>
+                      <button
+                        onClick={forceCompleteRefund}
+                        disabled={checkingRefund}
+                        className="px-3 py-2 rounded-md text-xs font-medium w-full disabled:opacity-60"
+                        style={{ border: "1px solid var(--seal-amber)", color: "var(--seal-amber)" }}
+                      >
+                        {checkingRefund ? "Working…" : "Mark Resolved (Manual Override — Test Mode Limitation)"}
+                      </button>
+                    </div>
                   </>
                 )}
               </div>

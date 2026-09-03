@@ -272,6 +272,86 @@ async function approveCaseViaRazorpay(caseId: string, payment: Payment, amount: 
   }
 }
 
+/**
+ * Manual, explicit override for the known Razorpay Test Mode limitation:
+ * Instant Refunds (speed: "optimum") fall back to normal-speed refunds when
+ * no real bank/UPI rail is available to route an instant transfer through —
+ * which is effectively always, in a sandbox. A normal-speed refund then has
+ * no real settlement event left to report, so it can sit in `pending`
+ * forever; neither a webhook nor polling will ever see it move to
+ * `processed`, because nothing is actually happening on Razorpay's side to
+ * report.
+ *
+ * This function does NOT claim Razorpay confirmed anything. It records an
+ * honest audit trail entry stating a human operator manually closed the
+ * case after presumably checking the Razorpay Dashboard themselves — the
+ * distinction between "Razorpay confirmed X" and "an operator manually
+ * attests X" is preserved throughout, including in the actor/reason fields
+ * so anyone reading the audit trail later sees exactly what happened.
+ *
+ * Only usable when a Razorpay-sourced refund is genuinely stuck in
+ * PROCESSING — this is not a bypass for the approval step itself, which
+ * already happened before this refund was ever created.
+ */
+export function forceCompleteRazorpayRefund(caseId: string, actor = "Merchant Ops") {
+  const db = getDb();
+  const c = getCase(caseId);
+  if (!c) throw new CaseActionError("NOT_FOUND", `Case ${caseId} does not exist`);
+
+  const refund = db.prepare(`SELECT * FROM refunds WHERE case_id = ?`).get(caseId) as
+    | { refund_id: string; payment_id: string; source: string; status: string; amount: number }
+    | undefined;
+
+  if (!refund) {
+    throw new CaseActionError("NOT_FOUND", "No refund record exists for this case.");
+  }
+  if (refund.source !== "RAZORPAY_TEST") {
+    throw new CaseActionError(
+      "INVALID_SOURCE",
+      "This override is only for Razorpay Test Mode refunds stuck in PROCESSING — simulated refunds complete instantly and never need it."
+    );
+  }
+  if (refund.status !== "PROCESSING") {
+    return {
+      alreadyProcessed: true,
+      message: `Refund is already ${refund.status.toLowerCase()}; nothing to override.`,
+      case: c,
+    };
+  }
+
+  const now = new Date().toISOString();
+  db.prepare(`UPDATE refunds SET status = 'COMPLETED', updated_at = ? WHERE refund_id = ?`).run(now, refund.refund_id);
+  db.prepare(`UPDATE payments SET current_status = 'REFUNDED', updated_at = ? WHERE payment_id = ?`).run(
+    now,
+    refund.payment_id
+  );
+
+  recordAudit({
+    caseId,
+    paymentId: refund.payment_id,
+    eventType: "REFUND_MANUALLY_CONFIRMED",
+    actor,
+    reason:
+      "Razorpay Test Mode did not report a final settlement status (a known sandbox limitation — see README). Operator manually confirmed the refund via the Razorpay Dashboard and closed the case.",
+    previousState: "PROCESSING",
+    newState: "COMPLETED",
+    outcome: `\u20b9${refund.amount} — manually confirmed, not gateway-confirmed`,
+  });
+  touch(caseId, "REFUND_COMPLETED");
+
+  recordAudit({
+    caseId,
+    eventType: "CASE_RESOLVED",
+    actor: "ReconcileX Agent",
+    reason: "Case closed following operator's manual refund confirmation",
+    previousState: "REFUND_COMPLETED",
+    newState: "RESOLVED",
+  });
+  touch(caseId, "RESOLVED");
+
+  return { alreadyProcessed: false, message: "Refund manually marked complete.", case: getCase(caseId) };
+}
+
 export function rejectCase(caseId: string, actor = "Merchant Ops", reason?: string) {
   const c = getCase(caseId);
   if (!c) throw new CaseActionError("NOT_FOUND", `Case ${caseId} does not exist`);

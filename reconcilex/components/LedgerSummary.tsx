@@ -35,6 +35,11 @@ export default function LedgerSummary({
           {difference > 0 ? "+" : ""}
           {formatINR(difference)}
         </p>
+        {difference > 0 && (
+          <p className="text-[10px] mt-0.5" style={{ color: "var(--text-faint)" }}>
+            Potential overcollection
+          </p>
+        )}
       </div>
       <div>
         <span

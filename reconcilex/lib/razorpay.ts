@@ -120,10 +120,20 @@ export async function fetchRazorpayPayment(paymentId: string): Promise<Record<st
 
 /**
  * Create a Test Mode refund for a captured payment. amountPaise omitted =
- * full refund. Razorpay refunds are asynchronous even in test mode — a
- * 200 response here means "refund accepted", not "money returned"; the
- * `status` field on the response (and later the refund.processed webhook,
- * where reachable) is what actually confirms completion.
+ * full refund.
+ *
+ * We request `speed: "optimum"` (an Instant Refund). This matters a lot in
+ * Test Mode specifically: a "normal"-speed refund has no real bank behind
+ * it in Test Mode, so it has nothing to actually settle against and can sit
+ * in "pending" indefinitely — neither a webhook nor manual polling will
+ * ever see it move to "processed", because there's no real-world event left
+ * for Razorpay to report. An Instant Refund is a genuine, documented
+ * Razorpay feature (not a workaround) that Razorpay does simulate completing
+ * in Test Mode. If a specific payment method doesn't support Instant
+ * Refunds, Razorpay silently falls back to normal speed per their own docs
+ * — we don't need to detect or handle that ourselves, we just don't get the
+ * fast path for that one refund and the manual "Check Refund Status" /
+ * webhook path remains the fallback either way.
  */
 export async function createRazorpayRefund(
   paymentId: string,
@@ -150,7 +160,10 @@ export async function createRazorpayRefund(
       // stable for the lifetime of a given case's refund attempt.
       ...(idempotencyKey ? { "X-Refund-Idempotency": idempotencyKey } : {}),
     },
-    body: JSON.stringify(amountPaise ? { amount: amountPaise } : {}),
+    body: JSON.stringify({
+      ...(amountPaise ? { amount: amountPaise } : {}),
+      speed: "optimum",
+    }),
   });
 
   const body = await res.json().catch(() => ({}));

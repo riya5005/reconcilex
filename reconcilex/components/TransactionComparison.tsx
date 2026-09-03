@@ -1,4 +1,4 @@
-import { formatINR, formatDateTime } from "@/lib/format";
+import { formatINR, formatDateTime, paymentLifecycleLabel } from "@/lib/format";
 
 interface Payment {
   payment_id: string;
@@ -37,13 +37,23 @@ function PayCard({ p, role }: { p: Payment; role: string }) {
           <span className="font-mono">{formatDateTime(p.created_at)}</span>
         </div>
         <div className="flex justify-between text-xs">
-          <span style={{ color: "var(--text-faint)" }}>Status</span>
-          <span className="font-mono">
+          <span style={{ color: "var(--text-faint)" }}>Lifecycle</span>
+          <span className="font-mono text-right">
             {p.initial_status !== p.current_status
-              ? `${p.initial_status} \u2192 ${p.current_status}`
-              : p.current_status}
+              ? `${paymentLifecycleLabel(p.initial_status, p.source)} \u2192 ${paymentLifecycleLabel(
+                  p.current_status,
+                  p.source
+                )}`
+              : paymentLifecycleLabel(p.current_status, p.source)}
           </span>
         </div>
+        {p.initial_status === "PENDING" && (
+          <p className="text-[10px] italic text-right" style={{ color: "var(--text-faint)" }}>
+            {isRazorpay
+              ? "Gateway-derived state, not an assumption"
+              : "ReconcileX/customer-facing state"}
+          </p>
+        )}
         {isRazorpay && p.razorpay_payment_id && (
           <div className="flex justify-between text-xs">
             <span style={{ color: "var(--text-faint)" }}>Razorpay ID</span>

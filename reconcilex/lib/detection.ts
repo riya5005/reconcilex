@@ -348,7 +348,24 @@ export function runOrderPaymentMismatchDetection() {
   return created;
 }
 
+<<<<<<< Updated upstream
 
+=======
+/**
+ * How long a refund can sit in PROCESSING before ReconcileX flags it for
+ * operator follow-up. Razorpay Test Mode refunds are asynchronous (see the
+ * comment on createRazorpayRefund in lib/razorpay.ts) — a 200 response only
+ * means "accepted", not "money returned". In practice Test Mode refunds
+ * usually settle within minutes, so anything still PROCESSING past this
+ * window is more likely a missed webhook (e.g. no public URL registered)
+ * than a refund still genuinely in flight.
+ *
+ * Defaults to 2 minutes so this is demo-friendly out of the box — approve
+ * a refund, wait ~2 minutes, run detection again, and it flags. Set
+ * STUCK_REFUND_THRESHOLD_MINUTES to something larger (e.g. 30) for a
+ * deployment that isn't just a live demo.
+ */
+>>>>>>> Stashed changes
 const STUCK_REFUND_THRESHOLD_MINUTES = Number(process.env.STUCK_REFUND_THRESHOLD_MINUTES) || 2;
 
 interface StuckRefundRow {
@@ -360,7 +377,27 @@ interface StuckRefundRow {
   created_at: string;
 }
 
+<<<<<<< Updated upstream
 
+=======
+/**
+ * Third detector: finds refunds that were initiated (simulated or via a
+ * real Razorpay Test Mode call) but have sat in PROCESSING for longer than
+ * STUCK_REFUND_THRESHOLD_MINUTES without ever reaching COMPLETED or FAILED.
+ *
+ * This does not create a brand-new case. The case already exists — created
+ * by whatever originally triggered the refund (a duplicate payment, an
+ * order mismatch, etc). A stuck refund re-labels that case as STUCK_REFUND
+ * so it surfaces in the "Stuck Refund" filter and dashboard count, and logs
+ * a single REFUND_STUCK_FLAGGED audit event explaining exactly when and why
+ * it was flagged — the same event type lib/seed.ts already uses for the
+ * seeded stuck-refund demo case, so seeded and live-detected cases behave
+ * identically in the UI.
+ *
+ * Idempotent: a case that has already been flagged once is never flagged
+ * again, even if this runs on every page load / polling interval.
+ */
+>>>>>>> Stashed changes
 export function runStuckRefundDetection() {
   const db = getDb();
   const cutoff = new Date(Date.now() - STUCK_REFUND_THRESHOLD_MINUTES * 60_000).toISOString();
