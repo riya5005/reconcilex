@@ -2,6 +2,8 @@
 
 ### AI-assisted payment reconciliation and resolution
 
+![Build](https://github.com/riya5005/reconcilex/actions/workflows/build.yml/badge.svg)
+
 ReconcileX is a payment operations tool built around a simple problem:
 
 **What happens when a customer pays twice for the same order?**
