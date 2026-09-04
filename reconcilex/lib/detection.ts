@@ -348,9 +348,6 @@ export function runOrderPaymentMismatchDetection() {
   return created;
 }
 
-<<<<<<< Updated upstream
-
-=======
 /**
  * How long a refund can sit in PROCESSING before ReconcileX flags it for
  * operator follow-up. Razorpay Test Mode refunds are asynchronous (see the
@@ -365,7 +362,6 @@ export function runOrderPaymentMismatchDetection() {
  * STUCK_REFUND_THRESHOLD_MINUTES to something larger (e.g. 30) for a
  * deployment that isn't just a live demo.
  */
->>>>>>> Stashed changes
 const STUCK_REFUND_THRESHOLD_MINUTES = Number(process.env.STUCK_REFUND_THRESHOLD_MINUTES) || 2;
 
 interface StuckRefundRow {
@@ -377,9 +373,6 @@ interface StuckRefundRow {
   created_at: string;
 }
 
-<<<<<<< Updated upstream
-
-=======
 /**
  * Third detector: finds refunds that were initiated (simulated or via a
  * real Razorpay Test Mode call) but have sat in PROCESSING for longer than
@@ -397,7 +390,6 @@ interface StuckRefundRow {
  * Idempotent: a case that has already been flagged once is never flagged
  * again, even if this runs on every page load / polling interval.
  */
->>>>>>> Stashed changes
 export function runStuckRefundDetection() {
   const db = getDb();
   const cutoff = new Date(Date.now() - STUCK_REFUND_THRESHOLD_MINUTES * 60_000).toISOString();
