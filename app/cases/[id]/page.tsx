@@ -109,7 +109,8 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
     setLoading(false);
   }, [id]);
 
-  useEffect(() => {
+    useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
   }, [load]);
 
@@ -339,8 +340,8 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           <h2 className="font-display text-lg font-semibold mb-3">Why This Incident Was Flagged</h2>
           <div className="rounded-lg p-5" style={{ background: "var(--surface)", border: "1px solid var(--line)" }}>
             <p className="text-xs mb-4" style={{ color: "var(--text-soft)" }}>
-              Every signal below is read directly from the payment and order records — nothing
-              is inferred beyond the stored data. This is the deterministic engine's evidence,
+             Every signal below is read directly from the payment and order records — nothing
+              is inferred beyond the stored data. This is the deterministic engine&apos;s evidence,
               independent of the AI layer above.
             </p>
             <EvidenceList evidence={evidence} />

@@ -45,7 +45,12 @@ export default function DashboardPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => {
+    useEffect(() => {
+    // `load` is intentionally reused both here (on mount) and from action
+    // handlers below (e.g. runDetection) — its setState calls happen after
+    // an `await fetch(...)`, not synchronously within this effect, so this
+    // is the standard safe fetch-on-mount pattern, not a cascading-render risk.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
   }, [load]);
 

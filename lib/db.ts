@@ -7,9 +7,7 @@ if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 const DB_PATH = path.join(DATA_DIR, "reconcilex.db");
 
-// Reuse a single connection across hot reloads in dev
 declare global {
-  // eslint-disable-next-line no-var
   var __reconcilex_db__: Database.Database | undefined;
 }
 
@@ -148,11 +146,7 @@ function initSchema(db: Database.Database) {
   migrateColumns(db);
 }
 
-/**
- * SQLite has no "ADD COLUMN IF NOT EXISTS" — check pragma table_info and add
- * only what's missing. Safe to run on every startup; existing rows get the
- * DEFAULT value (SIMULATION), so nothing already in the demo database breaks.
- */
+
 function migrateColumns(db: Database.Database) {
   const columns = db.prepare(`PRAGMA table_info(payments)`).all() as { name: string }[];
   const has = (name: string) => columns.some((c) => c.name === name);
