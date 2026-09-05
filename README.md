@@ -4,6 +4,9 @@
 
 ![Build](https://github.com/riya5005/reconcilex/actions/workflows/build.yml/badge.svg)
 
+![License](https://img.shields.io/github/license/riya5005/reconcilex)
+![Razorpay Test Mode](https://img.shields.io/badge/Razorpay-Test%20Mode-3395FF)
+
 ReconcileX is a payment operations tool built around a simple problem:
 
 **What happens when a customer pays twice for the same order?**
